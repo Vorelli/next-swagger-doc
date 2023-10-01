@@ -1,7 +1,10 @@
-import { join } from 'node:path';
-import type { NextApiRequest, NextApiResponse } from 'next';
-import swaggerJsdoc, { type OAS3Definition, type Options } from 'swagger-jsdoc';
-import { getRoutesAndCode } from './helpers/getRoutesAndCode';
+import { join } from "node:path";
+import type { NextApiRequest, NextApiResponse } from "next";
+import swaggerJsdoc, { type OAS3Definition, type Options } from "swagger-jsdoc";
+import { getRoutesAndCode } from "./helpers/getRoutesAndCode";
+import { codeToAst } from "./helpers/codeToAST";
+import traverse from "@babel/traverse";
+import * as doctrine from "doctrine";
 
 export type SwaggerOptions = Options & {
   apiFolder?: string;
@@ -11,13 +14,13 @@ export type SwaggerOptions = Options & {
 };
 
 const defaultOptions: SwaggerOptions = {
-  apiFolder: 'pages/api',
+  apiFolder: "pages/api",
   schemaFolders: [],
   definition: {
-    openapi: '3.0.0',
+    openapi: "3.0.0",
     info: {
-      title: 'Next Swagger Doc Demo Api',
-      version: '1.0',
+      title: "Next Swagger Doc Demo Api",
+      version: "1.0",
     },
   },
 };
@@ -32,24 +35,24 @@ const defaultOptions: SwaggerOptions = {
  * @returns Swagger JSON Spec
  */
 export function createSwaggerSpec({
-  apiFolder = 'pages/api',
+  apiFolder = "pages/api",
   schemaFolders = [],
   ...swaggerOptions
 }: SwaggerOptions = defaultOptions) {
   const scanFolders = [apiFolder, ...schemaFolders];
   const apis = scanFolders.flatMap((folder) => {
-    const buildApiDirectory = join(process.cwd(), '.next/server', folder);
+    const buildApiDirectory = join(process.cwd(), ".next/server", folder);
     const apiDirectory = join(process.cwd(), folder);
-    const publicDirectory = join(process.cwd(), 'public');
-    const fileTypes = ['ts', 'tsx', 'jsx', 'js', 'json', 'swagger.yaml'];
+    const publicDirectory = join(process.cwd(), "public");
+    const fileTypes = ["ts", "tsx", "jsx", "js", "json", "swagger.yaml"];
     return [
       ...fileTypes.map((fileType) => `${apiDirectory}/**/*.${fileType}`),
       // Only scan build directory for *.swagger.yaml and *.js files
-      ...['js', 'swagger.yaml', 'json'].map(
+      ...["js", "swagger.yaml", "json"].map(
         (fileType) => `${buildApiDirectory}/**/*.${fileType}`
       ),
       // Support load static files from public directory
-      ...['swagger.yaml', 'json'].map(
+      ...["swagger.yaml", "json"].map(
         (fileType) => `${publicDirectory}/**/*.${fileType}`
       ),
     ];
@@ -57,7 +60,24 @@ export function createSwaggerSpec({
 
   // For each of the api folders, parse as AST and get the route and possible return types
   const routesPathToCode = getRoutesAndCode(apiFolder);
-  console.log(routesPathToCode);
+
+  Object.entries(routesPathToCode).map(([_route, code]) => {
+    const ast = codeToAst(code);
+    traverse(ast, {
+      enter(path) {
+        if (path.node.leadingComments) {
+          for (const comment of path.node.leadingComments) {
+            if (comment.type === "CommentBlock") {
+              const parsedComment = doctrine.parse(comment.value, {
+                unwrap: true,
+              });
+              console.log("Parsed Comment:", parsedComment);
+            }
+          }
+        }
+      },
+    });
+  });
   // Convert that data and append it to the swagger options
 
   // Conditions: basePath is specified. Server array is not defined.
@@ -68,7 +88,7 @@ export function createSwaggerSpec({
         servers: [
           {
             url: process.env.__NEXT_ROUTER_BASEPATH,
-            description: 'next-js',
+            description: "next-js",
           },
         ],
       }),
@@ -97,7 +117,7 @@ export function createSwaggerSpec({
  * @returns
  */
 export function withSwagger({
-  apiFolder = 'pages/api',
+  apiFolder = "pages/api",
   schemaFolders = [],
   ...swaggerOptions
 }: SwaggerOptions = defaultOptions) {
