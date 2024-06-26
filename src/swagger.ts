@@ -1,5 +1,6 @@
 import traverse from "@babel/traverse";
 import * as doctrine from "doctrine";
+import { NextResponse, NextRequest } from "next/server";
 import { type NextApiRequest, type NextApiResponse } from "next";
 import { join } from "path";
 import swaggerJsdoc, {
@@ -71,38 +72,38 @@ export function createSwaggerSpec({
 
   Object.entries(routesPathToCode).forEach(([route, code]) => {
     const ast = codeToAst(code);
-    (traverse as unknown as { default: typeof traverse }).default
+    ((traverse as unknown as { default: typeof traverse }).default
       ? (traverse as unknown as { default: typeof traverse }).default
-      : traverse(ast, {
-          enter(path) {
-            if (path.node.leadingComments) {
-              for (const comment of path.node.leadingComments) {
-                if (comment.type === "CommentBlock") {
-                  const parsedComment = doctrine.parse(comment.value, {
-                    unwrap: true,
-                  });
-                  // Get the route tag
-                  const routeTag = parsedComment.tags.find(
-                    (tag) => tag.title === "route"
-                  );
-                  if (!routeTag) return;
-                  const routeDescription = routeTag.description;
-                  if (!routeDescription) return;
-                  const parsedYaml = parse(routeDescription);
-                  const schema = z.object({
-                    description: z.string(),
-                  });
-                  const { description } = schema.parse(parsedYaml);
-                  paths[route] = {
-                    get: {
-                      description,
-                    },
-                  };
-                }
-              }
+      : traverse)(ast, {
+      enter(path) {
+        if (path.node.leadingComments) {
+          for (const comment of path.node.leadingComments) {
+            if (comment.type === "CommentBlock") {
+              const parsedComment = doctrine.parse(comment.value, {
+                unwrap: true,
+              });
+              // Get the route tag
+              const routeTag = parsedComment.tags.find(
+                (tag) => tag.title === "route"
+              );
+              if (!routeTag) return;
+              const routeDescription = routeTag.description;
+              if (!routeDescription) return;
+              const parsedYaml = parse(routeDescription);
+              const schema = z.object({
+                description: z.string(),
+              });
+              const { description } = schema.parse(parsedYaml);
+              paths[route] = {
+                get: {
+                  description,
+                },
+              };
             }
-          },
-        });
+          }
+        }
+      },
+    });
   });
   // Convert that data and append it to the swagger options
 
@@ -151,16 +152,28 @@ export function withSwagger({
   schemaFolders = [],
   ...swaggerOptions
 }: SwaggerOptions = defaultOptions) {
-  return () => (_req: NextApiRequest, res: NextApiResponse) => {
-    try {
-      const swaggerSpec = createSwaggerSpec({
-        apiFolder,
-        schemaFolders,
-        ...swaggerOptions,
-      });
-      res.status(200).send(swaggerSpec);
-    } catch (error) {
-      res.status(400).send(error);
-    }
-  };
+  return () =>
+    (
+      _req: NextApiRequest | NextRequest,
+      res: NextApiResponse | NextResponse
+    ) => {
+      try {
+        const swaggerSpec = createSwaggerSpec({
+          apiFolder,
+          schemaFolders,
+          ...swaggerOptions,
+        });
+        if (res instanceof NextResponse) {
+          return NextResponse.json(swaggerSpec, { status: 200 });
+        } else {
+          return res.status(200).send(swaggerSpec);
+        }
+      } catch (error) {
+        if (res instanceof NextResponse) {
+          return NextResponse.json(error, { status: 400 });
+        } else {
+          return res.status(400).send(error);
+        }
+      }
+    };
 }
