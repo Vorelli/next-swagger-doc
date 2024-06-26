@@ -1,5 +1,5 @@
 {
-  "name": "next-swagger-doc",
+  "name": "@vorelli/next-swagger-doc",
   "version": "0.4.0",
   "keywords": [
     "next-swagger",
@@ -10,7 +10,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/jellydn/next-swagger-doc"
+    "url": "git+https://github.com/vorelli/next-swagger-doc.git"
   },
   "license": "MIT",
   "author": "Huynh Duc Dung",
@@ -82,5 +82,8 @@
   "packageManager": "pnpm@9.4.0",
   "engines": {
     "node": ">=18"
-  }
+  },
+  "trustedDependencies": [
+    "@biomejs/biome"
+  ]
 }
