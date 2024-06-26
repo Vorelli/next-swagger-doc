@@ -112,7 +112,7 @@ export function createSwaggerSpec({
     ...swaggerOptions.definition,
     paths: {
       ...paths,
-      ...swaggerOptions.definition.paths,
+      ...(swaggerOptions?.definition?.paths ?? {}),
     },
     ...(process.env.__NEXT_ROUTER_BASEPATH &&
       !swaggerOptions.definition.servers && {
@@ -163,16 +163,16 @@ export function withSwagger({
           schemaFolders,
           ...swaggerOptions,
         });
-        if (res instanceof NextResponse) {
-          return NextResponse.json(swaggerSpec, { status: 200 });
+        if (res.status) {
+          return (res as NextApiResponse).status(200).send(swaggerSpec);
         } else {
-          return res.status(200).send(swaggerSpec);
+          return NextResponse.json(swaggerSpec, { status: 200 });
         }
       } catch (error) {
-        if (res instanceof NextResponse) {
-          return NextResponse.json(error, { status: 400 });
+        if (res.status) {
+          return (res as NextApiResponse).status(400).send(error);
         } else {
-          return res.status(400).send(error);
+          return NextResponse.json(error, { status: 400 });
         }
       }
     };
