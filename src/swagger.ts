@@ -1,4 +1,4 @@
-import traverse from "@babel/traverse";
+import * as traverse from "@babel/traverse";
 import * as doctrine from "doctrine";
 import { type NextApiRequest, type NextApiResponse } from "next";
 import { join } from "path";
@@ -71,7 +71,7 @@ export function createSwaggerSpec({
 
   Object.entries(routesPathToCode).forEach(([route, code]) => {
     const ast = codeToAst(code);
-    traverse(ast, {
+    traverse.default(ast, {
       enter(path) {
         if (path.node.leadingComments) {
           for (const comment of path.node.leadingComments) {
