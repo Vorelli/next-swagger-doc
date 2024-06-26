@@ -17,6 +17,12 @@ importers:
       '@babel/types':
         specifier: ^7.23.0
         version: 7.24.7
+      '@types/babel__traverse':
+        specifier: ^7.20.2
+        version: 7.20.6
+      '@types/doctrine':
+        specifier: ^0.0.7
+        version: 0.0.7
       '@types/swagger-jsdoc':
         specifier: 6.0.4
         version: 6.0.4
@@ -48,12 +54,6 @@ importers:
       '@skypack/package-check':
         specifier: 0.2.2
         version: 0.2.2
-      '@types/babel__traverse':
-        specifier: ^7.20.2
-        version: 7.20.6
-      '@types/doctrine':
-        specifier: ^0.0.7
-        version: 0.0.7
       '@types/node':
         specifier: 20.14.9
         version: 20.14.9

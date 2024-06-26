@@ -70,7 +70,13 @@ exports[`withSwagger > should have support OAuth2 Authentication 1`] = `
     "version": "0.1.0",
   },
   "openapi": "3.0.0",
-  "paths": {},
+  "paths": {
+    "api/route": {
+      "get": {
+        "description": "This is a get request",
+      },
+    },
+  },
   "security": [
     {
       "OAuth2": [
