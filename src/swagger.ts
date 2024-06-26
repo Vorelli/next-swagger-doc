@@ -1,16 +1,16 @@
-import traverse from '@babel/traverse';
-import * as doctrine from 'doctrine';
-import { type NextApiRequest, type NextApiResponse } from 'next';
-import { join } from 'path';
+import * as traverse from "@babel/traverse";
+import * as doctrine from "doctrine";
+import { type NextApiRequest, type NextApiResponse } from "next";
+import { join } from "path";
 import swaggerJsdoc, {
   type Paths,
   type OAS3Definition,
   type Options,
-} from 'swagger-jsdoc';
-import { parse } from 'yaml';
-import { z } from 'zod';
-import { codeToAst } from './helpers/codeToAST';
-import { getRoutesAndCode } from './helpers/getRoutesAndCode';
+} from "swagger-jsdoc";
+import { parse } from "yaml";
+import { z } from "zod";
+import { codeToAst } from "./helpers/codeToAST";
+import { getRoutesAndCode } from "./helpers/getRoutesAndCode";
 
 export type SwaggerOptions = Options & {
   apiFolder?: string;
@@ -71,7 +71,7 @@ export function createSwaggerSpec({
 
   Object.entries(routesPathToCode).forEach(([route, code]) => {
     const ast = codeToAst(code);
-    traverse(ast, {
+    traverse.default(ast, {
       enter(path) {
         if (path.node.leadingComments) {
           for (const comment of path.node.leadingComments) {
@@ -81,7 +81,7 @@ export function createSwaggerSpec({
               });
               // Get the route tag
               const routeTag = parsedComment.tags.find(
-                (tag) => tag.title === 'route'
+                (tag) => tag.title === "route"
               );
               if (!routeTag) return;
               const routeDescription = routeTag.description;
