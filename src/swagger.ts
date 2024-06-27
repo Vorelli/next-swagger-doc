@@ -9,9 +9,10 @@ import swaggerJsdoc, {
   type Options,
 } from "swagger-jsdoc";
 import { parse } from "yaml";
-import { z } from "zod";
 import { codeToAst } from "./helpers/codeToAST";
 import { getRoutesAndCode } from "./helpers/getRoutesAndCode";
+import { Parser, organize } from "./parser";
+import { inspect } from "util";
 
 export type SwaggerOptions = Options & {
   apiFolder?: string;
@@ -69,15 +70,24 @@ export function createSwaggerSpec({
   const routesPathToCode = getRoutesAndCode(apiFolder);
 
   const paths: Paths = {};
+  const pathPromises: Array<Promise<any>> = [];
 
-  Object.entries(routesPathToCode).forEach(([route, code]) => {
+  for (const [route, code] of Object.entries(routesPathToCode)) {
     const ast = codeToAst(code);
     ((traverse as unknown as { default: typeof traverse }).default
       ? (traverse as unknown as { default: typeof traverse }).default
       : traverse)(ast, {
       enter(path) {
-        if (path.node.leadingComments) {
-          for (const comment of path.node.leadingComments) {
+        if (
+          path.node.leadingComments ||
+          path.node.trailingComments ||
+          path.node.innerComments
+        ) {
+          for (const comment of [
+            ...(path.node.leadingComments ?? []),
+            ...(path.node.trailingComments ?? []),
+            ...(path.node.innerComments ?? []),
+          ]) {
             if (comment.type === "CommentBlock") {
               const parsedComment = doctrine.parse(comment.value, {
                 unwrap: true,
@@ -89,53 +99,72 @@ export function createSwaggerSpec({
               if (!routeTag) return;
               const routeDescription = routeTag.description;
               if (!routeDescription) return;
-              const parsedYaml = parse(routeDescription);
-              const schema = z.object({
+              /*const schema = z.object({
                 description: z.string(),
-              });
-              const { description } = schema.parse(parsedYaml);
-              paths[route] = {
-                get: {
-                  description,
-                },
-              };
+              });*/
+              const parsedYaml = parse(routeDescription);
+              console.log("parsedYaml:", inspect(parsedYaml));
+              pathPromises.push(
+                new Parser()
+                  .parse(route, routeDescription, parsedYaml, {}, () => {})
+                  .then((obj2) => {
+                    console.log("obj2:", inspect(obj2));
+                    const obj = {};
+                    for (const property in obj2) {
+                      organize(obj, obj2, property);
+                    }
+                    paths[route] = {
+                      obj,
+                    };
+                  })
+              );
+              //const { description } = schema.parse(parsedYaml);
+              /*for (const document of yamlDocsReady) {
+    const parsedDoc = document.toJSON();
+    for (const property in parsedDoc) {
+      organize(specification, parsedDoc, property);
+    }
+  }*/
             }
           }
         }
       },
     });
-  });
+  }
   // Convert that data and append it to the swagger options
 
   // Conditions: basePath is specified. Server array is not defined.
-  const definition = {
-    ...swaggerOptions.definition,
-    paths: {
-      ...paths,
-      ...(swaggerOptions?.definition?.paths ?? {}),
-    },
-    ...(process.env.__NEXT_ROUTER_BASEPATH &&
-      !swaggerOptions.definition.servers && {
-        servers: [
-          {
-            url: process.env.__NEXT_ROUTER_BASEPATH,
-            description: "next-js",
-          },
-        ],
-      }),
-  };
+  //
+  return Promise.all(pathPromises).then(() => {
+    const definition = {
+      ...swaggerOptions.definition,
+      paths: {
+        ...paths,
+        ...(swaggerOptions?.definition?.paths ?? {}),
+      },
+      ...(process.env.__NEXT_ROUTER_BASEPATH &&
+        !swaggerOptions.definition.servers && {
+          servers: [
+            {
+              url: process.env.__NEXT_ROUTER_BASEPATH,
+              description: "next-js",
+            },
+          ],
+        }),
+    };
 
-  const options: SwaggerOptions = {
-    apis, // Files containing annotations as above
-    ...swaggerOptions,
-    definition,
-  };
+    const options: SwaggerOptions = {
+      apis, // Files containing annotations as above
+      ...swaggerOptions,
+      definition,
+    };
 
-  const spec = swaggerJsdoc(options);
+    const spec = swaggerJsdoc(options);
 
-  // Delete the temporary folder
+    // Delete the temporary folder
 
-  return spec;
+    return spec;
+  });
 }
 
 /**
